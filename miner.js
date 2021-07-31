@@ -1,8 +1,8 @@
 'use strict'
 
-const {Conv, Hash, Time} = require('./lib/helpers')
+const { Conv, Hash, Time } = require('./lib/helpers')
 const moment = require('moment')
-const {Client} = require('json-rpc2')
+const { Client } = require('json-rpc2')
 
 console.log('Miner for Hidecoin Core III')
 
@@ -10,9 +10,9 @@ const log = (...data) => {
   console.log('[' + moment().format('HH:mm:ss') + ']#', ...data)
 }
 
-var hashesPerCycle = 100000
-var nonce = 0
-var working = false
+let hashesPerCycle = 100000
+let nonce = 0
+let working = false
 
 const args = process.argv
 for (let i = 2; i < args.length; i++) {
@@ -31,7 +31,7 @@ for (let i = 2; i < args.length; i++) {
 }
 
 const initNonce = nonce
-var hps = 0
+let hps = 0
 
 log('Configuration')
 log('HPC     :', hashesPerCycle)
@@ -45,7 +45,7 @@ const continueMining = () => {
   }
   working = true
   log('Requesting fresh data')
-  client.call('miner.gettask', {nonce: initNonce, hps}, (err, res) => {
+  client.call('miner.gettask', { nonce: initNonce, hps }, (err, res) => {
     if (err) {
       log('Error:', err)
     }
@@ -55,7 +55,7 @@ const continueMining = () => {
       working = false
       return
     }
-    
+
     if (!res.active) {
       log('Mining suspended')
       hps = 0
@@ -63,13 +63,13 @@ const continueMining = () => {
       setTimeout(continueMining, 1000)
       return
     }
-    
+
     const blockData = Conv.baseToBuf(res.blockData)
     const header = blockData.slice(0, res.blockHeaderSize)
     const diff = blockData.slice(41, 73)
-    
+
     log('Received fresh data, block size', blockData.length, 'bytes')
-    
+
     let hash
     const timeStart = Time.localMs()
     for (let i = 0; i < hashesPerCycle; i++) {
@@ -78,7 +78,7 @@ const continueMining = () => {
       hash = Hash.twice(header)
       if (hash.compare(diff) <= 0) {
         log('FOUND', Conv.bufToHex(hash))
-        client.call('miner.blockfound', {hash: Conv.bufToBase(hash), blockData: Conv.bufToBase(blockData), txHashList: res.txHashList}, (err, res) => {
+        client.call('miner.blockfound', { hash: Conv.bufToBase(hash), blockData: Conv.bufToBase(blockData), txHashList: res.txHashList }, (err, res) => {
           res && res.status && log(res.status)
         })
         setTimeout(continueMining, 500)
@@ -86,11 +86,11 @@ const continueMining = () => {
         return
       }
     }
-    
+
     const duration = Time.localMs() - timeStart
     hps = parseInt(hashesPerCycle * 1000 / duration)
     log('HPS', hps, 'Diff', Conv.bufToHex(diff))
-    
+
     working = false
     continueMining()
   })
