@@ -1,6 +1,6 @@
 'use strict'
 
-const { Conv, Hash, Time } = require('./lib/helpers')
+const { Conv, Hash, Time } = require('./src/helpers')
 const moment = require('moment')
 const { Client } = require('json-rpc2')
 

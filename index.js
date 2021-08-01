@@ -1,17 +1,17 @@
 'use strict'
 const path = require('path')
 const moment = require('moment')
-const { Conv, Time } = require('./lib/helpers')
-const storage = require('./lib/Storage')
-const disp = require('./lib/Disp')
-const Component = require('./lib/Component')
-const Address = require('./lib/Address')
-const blockchain = require('./lib/Blockchain')
-const ifc = require('./lib/Interface')
-const p2p = require('./lib/P2P')
-const synchronizer = require('./lib/Synchronizer')
+const { Conv, Time } = require('./src/helpers')
+const storage = require('./src/Storage')
+const disp = require('./src/Disp')
+const Component = require('./src/Component')
+const Address = require('./src/Address')
+const blockchain = require('./src/Blockchain')
+const ifc = require('./src/Interface')
+const p2p = require('./src/P2P')
+const synchronizer = require('./src/Synchronizer')
 const packageInfo = require('./package')
-const minerChief = require('./lib/MinerChief')
+const minerChief = require('./src/MinerChief')
 const dataPath = path.join(__dirname, 'data')
 storage.init({ dataPath, config: require('./config.json') })
 const app = new class App extends Component {
@@ -52,10 +52,10 @@ const app = new class App extends Component {
         setInterval(() => blockchain.saveCheckpoint(), 600000)
         storage.on('synchronize', () => synchronizer.run())
         blockchain.on('changed', () => minerChief.updateTask())
-        require('./lib/RpcServer').on('minerRequestedTask', () => ifc.updateWindow('app', { progressMinerState: true }))
+        require('./src/RpcServer').on('minerRequestedTask', () => ifc.updateWindow('app', { progressMinerState: true }))
 
-        this.walletUI = require('./lib/WalletUI')
-        require('./lib/Debugger')
+        this.walletUI = require('./src/WalletUI')
+        require('./src/Debugger')
 
         let currentBox = 'console'
         let currentBlockHeight = null
