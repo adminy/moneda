@@ -8,8 +8,6 @@
 *  }
 */
 
-const R = require('ramda')
-
 class ScalableBufferArray {
   constructor (options) {
     const { step, fields } = options
@@ -21,19 +19,10 @@ class ScalableBufferArray {
     this.length = 0
 
     this.fields = fields
-    this.itemMinSize = R.reduce((acc, field) => {
-      return acc + (field.size || 0)
-    }, 0, R.values(this.fields))
+    this.itemMinSize = Object.values(fields).reduce((acc, field) => acc + (field.size || 0), 0)
 
-    this.calcItemSizesSum = (i) => {
-      return this.itemMinSize * i + R.reduce((acc, sizes) => {
-        return acc + R.reduce((acc, size) => {
-          return acc + size
-        }, 0, R.values(sizes))
-      }, 0, this.customSizes.slice(0, i))
-    }
-
-    this.calcItemSize = (customSizes) => this.itemMinSize + R.reduce((acc, size) => acc + size, 0, R.values(customSizes))
+    this.calcItemSizesSum = i => this.itemMinSize * i + this.customSizes.slice(0, i).reduce((acc, sizes) => acc + Object.values(sizes).reduce((acc, size) => acc + size, 0), 0)
+    this.calcItemSize = customSizes => this.itemMinSize + Object.values(customSizes).reduce((acc, size) => acc + size, 0)
     this.alloc = (stepsCount = 1) => {
       const _buffer = Buffer.allocUnsafeSlow(this.dataSize)
       this.buffer.copy(_buffer)
@@ -157,11 +146,7 @@ class ScalableBufferArray {
   }
 
   indexOf (fieldName, fieldValue) {
-    return this.each((item, i) => {
-      if (R.equals(item[fieldName], fieldValue)) {
-        return i
-      }
-    }, -1)
+    return this.each((item, i) => item[fieldName] === fieldValue && i, -1)
   }
 
   push (data, customSizes, i) {
@@ -177,7 +162,7 @@ class ScalableBufferArray {
       start = this.calcItemSizesSum(i)
       this.buffer.copy(this.buffer, start + itemSize, start)
     }
-    this.customSizes = R.insert(i, customSizes, this.customSizes)
+    this.customSizes.splice(i, 0, customSizes)
     for (const name in this.fields) {
       const field = this.fields[name]
       const fieldData = data[name]
@@ -201,7 +186,7 @@ class ScalableBufferArray {
     const itemSize = this.calcItemSize(this.customSizes[i])
     const start = this.calcItemSizesSum(i)
     this.buffer.copy(this.buffer, start, start + itemSize)
-    this.customSizes = R.remove(i, 1, this.customSizes)
+    this.customSizes.splice(i, 1)
     this.dataSize -= itemSize
     this.length--
     return true

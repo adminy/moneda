@@ -1,6 +1,5 @@
 'use strict'
 
-const R = require('ramda')
 const { Server } = require('json-rpc2')
 
 const { Conv } = require('./helpers')
@@ -36,7 +35,7 @@ class RpcServer extends Component {
         this.log('#' + requestId + ' Rcvd miner.gettask, nonce=' + params.nonce + ', hps=' + params.hps)
         if ((params.nonce !== undefined) && (params.hps !== undefined)) {
           storage.session.stat.hpsList[params.nonce] = params.hps
-          storage.session.stat.hps = Conv.countToStr(R.reduce((a, b) => a + b, 0, R.values(storage.session.stat.hpsList)))
+          storage.session.stat.hps = Conv.countToStr(Object.values(storage.session.stat.hpsList).reduce((a, b) => a + b, 0))
         }
         if (storage.session.miner.task && storage.session.miner.task.active) {
           this.log('#' + requestId + ' Sent {green-fg}active=1{/green-fg}')

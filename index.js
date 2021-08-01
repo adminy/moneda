@@ -116,7 +116,7 @@ const app = new class App extends Component {
         })
         ifc.key(['f8', '*'], () => {
           const currentWindow = ifc.getCurrentWindow()
-          currentWindow === 'app' && (currentBox === 'blocks' ? askBlock() : this.log('Nodes:', Object.keys(storage.servers).join(', ')))
+          currentWindow === 'app' && (currentBox === 'blocks' ? askBlock() : this.log('Nodes:', Object.keys(storage.servers || {}).join(', ')))
           currentWindow === 'wallet' && this.walletUI.showMenu('options')
         })
         ifc.key('C-l', () => {

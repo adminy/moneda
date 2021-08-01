@@ -1,6 +1,5 @@
 'use strict'
 
-const R = require('ramda')
 const _ = require('lodash')
 
 const { Asyncs, Conv, Time } = require('./helpers')
@@ -176,27 +175,14 @@ class Net extends Component {
         storage.session.netBroadcastLog[dataBased] = localTime
       }
 
-      const startIn = 0
       let requested = 0
-
-      Asyncs.forEach(storage.servers, (server, address, next) => {
-        if (!server) {
-          next()
-          return
-        }
-
+      for (const server in storage.servers) {
+        const address = storage.servers[server]
+        if (!server) continue
         requested++
-        this.send(server.port, address, data, {
-          onTimeout: () => {
-            next()
-          }
-        })
-
-        if (!limit || requested < limit) {
-          next()
-        }
-      })
-
+        this.send(server.port, address, data, { onTimeout: () => console.log('continue') })
+        if (!limit || requested < limit) break
+      }
       return true
     }
 

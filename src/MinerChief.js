@@ -1,7 +1,5 @@
 'use strict'
 
-const R = require('ramda')
-
 const { Conv, Random, Time } = require('./helpers')
 const storage = require('./Storage')
 const Component = require('./Component')

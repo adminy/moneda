@@ -8,8 +8,6 @@
 *  }
 */
 
-const R = require('ramda')
-
 class BufferArray {
   constructor (options) {
     const { step, fields } = options
@@ -21,11 +19,11 @@ class BufferArray {
 
     this.fields = fields
     let start = 0
-    this.itemSize = R.reduce((acc, field) => {
+    this.itemSize = Object.values(fields).reduce((acc, field) => {
       field.start = start
       start += field.size
       return acc + field.size
-    }, 0, R.values(this.fields))
+    }, 0)
 
     this.alloc = (stepsCount = 1) => {
       const _buffer = Buffer.allocUnsafeSlow(this.dataSize)
@@ -211,7 +209,7 @@ class BufferArray {
       const [fields] = args
       return this.each((item, i) => {
         for (const fieldName in fields) {
-          if (!R.equals(item[fieldName], fields[fieldName])) {
+          if (!item[fieldName] !== fields[fieldName]) {
             return
           }
         }
@@ -219,11 +217,7 @@ class BufferArray {
       }, -1)
     } else if (args.length === 2) {
       const [fieldName, fieldValue] = args
-      return this.each((item, i) => {
-        if (R.equals(item[fieldName], fieldValue)) {
-          return i
-        }
-      }, -1)
+      return this.each((item, i) => item[fieldName] === fieldValue && i, -1)
     } else {
       return -1
     }

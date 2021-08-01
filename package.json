@@ -9,8 +9,7 @@
     "json-rpc2": "^1.0.2",
     "lodash": "^4.17.4",
     "moment": "^2.18.1",
-    "ntp-client": "^0.5.3",
-    "ramda": "^0.23.0"
+    "ntp-client": "^0.5.3"
   },
   "scripts": {
     "start": "node index"

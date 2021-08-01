@@ -1,7 +1,6 @@
 'use strict'
 
 const fs = require('fs')
-const R = require('ramda')
 
 const { Asyncs, Conv, Probable, Time } = require('./helpers')
 const disp = require('./Disp')
@@ -37,7 +36,7 @@ class Synchronizer extends Component {
     //       if (!err) {
     //         if (res.blockchainLength >= storage.session.blockchain.length) {
     //           this.netInfoBlockchainLengths[res.address] = res.blockchainLength
-    //           storage.session.synchronizer.netInfoBlockchainLength = Probable.calc(R.values(this.netInfoBlockchainLengths))
+    //           storage.session.synchronizer.netInfoBlockchainLength = Probable.calc(Object.values(this.netInfoBlockchainLengths))
     //         }
     //       }
     //     })

@@ -1,7 +1,6 @@
 'use strict'
 
 const moment = require('moment')
-const R = require('ramda')
 const EventEmitter = require('events')
 const storage = require('./Storage')
 module.exports = class Component extends EventEmitter {

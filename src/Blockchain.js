@@ -7,7 +7,6 @@ Notes:
 const fs = require('fs')
 const path = require('path')
 const Database = require('better-sqlite3')
-const R = require('ramda')
 const { Files, Time } = require('./helpers')
 const disp = require('./Disp')
 const storage = require('./Storage')
@@ -19,6 +18,7 @@ const PATH_CHECKPOINTS = path.join(__dirname, '../data/checkpoints/')
 const INITIAL_PREV_BLOCK = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', 'hex')
 const FIRST_BLOCK_HASH = Buffer.from('00091c70a5766a655134e1a93cee11887515ad34c4f9d4b4287c7994d821cc33', 'hex')
 
+const splitEvery = (list, chunkSize) => [...Array(Math.ceil(list.length / chunkSize))].map(_ => list.splice(0, chunkSize))
 module.exports = new class Blockchain extends Component {
   constructor () {
     super()
@@ -213,7 +213,7 @@ module.exports = new class Blockchain extends Component {
         }
       }
       if (isBranchMaster && queryUpdateOutsValues.length) {
-        const queryUpdateOutsValuesItems = R.splitEvery(996, queryUpdateOutsValues)
+        const queryUpdateOutsValuesItems = splitEvery(queryUpdateOutsValues, 996)
         for (const queryUpdateOutsValuesItem of queryUpdateOutsValuesItems) {
           const unknowns = 'txHash=? AND outN=? OR '.repeat(queryUpdateOutsValuesItem.length >> 1).slice(0, -4)
           db.prepare('UPDATE outs SET spentAt=? WHERE (' + unknowns + ') AND inMasterBranch=?').run(blockId, ...queryUpdateOutsValuesItem, 1)
