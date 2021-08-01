@@ -4,7 +4,7 @@ const { Conv, Hash, Time } = require('./lib/helpers')
 const moment = require('moment')
 const { Client } = require('json-rpc2')
 
-console.log('Miner for Hidecoin Core III')
+console.log('Miner for Moneda')
 
 const log = (...data) => {
   console.log('[' + moment().format('HH:mm:ss') + ']#', ...data)
