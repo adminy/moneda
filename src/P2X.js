@@ -14,18 +14,9 @@ class P2X extends Component {
     super()
     this.module = 'P2X'
     this.mpxs = {}
-
-    p2p.on('online', () => {
-      this.emit('online')
-    })
-
-    p2p.on('newServer', (port, address, isIpv6) => {
-      this.emit('newServer', port, address, isIpv6)
-    })
-
-    p2p.on('rcvdData', (port, address, data) => {
-      this.emit('rcvdData', port, address, data)
-    })
+    p2p.on('online', () => this.emit('online'))
+    p2p.on('newServer', (port, address, isIpv6) => this.emit('newServer', port, address, isIpv6))
+    p2p.on('rcvdData', (port, address, data) => this.emit('rcvdData', port, address, data))
 
     p2p.on('rcvdDataPartSize', (port, address, data, callback) => {
       const dataLength = data.readUInt32BE(13)

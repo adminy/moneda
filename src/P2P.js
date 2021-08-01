@@ -44,18 +44,14 @@ class P2P extends Component {
     this.waiters = {}
 
     this.closeClient = () => {
-      if (!this.sockets.client) {
-        return false
-      }
+      if (!this.sockets.client) return false
       this.sockets.client.close()
       this.sockets.client.removeAllListeners()
       this.sockets.client = null
     }
 
     this.closeServer = () => {
-      if (!this.sockets.server) {
-        return false
-      }
+      if (!this.sockets.server) return false
       this.sockets.server.close()
       this.sockets.server.removeAllListeners()
       this.sockets.server = null
@@ -65,12 +61,8 @@ class P2P extends Component {
       const port = randomNumber(50000, 55000)
       this.closeClient()
       this.sockets.client = dgram.createSocket('udp4')
-      this.sockets.client.on('error', () => {
-        this.bindLocalPort()
-      })
-      this.sockets.client.on('message', (...data) => {
-        this.clientProcessMessage(...data)
-      })
+      this.sockets.client.on('error', () => this.bindLocalPort())
+      this.sockets.client.on('message', (...data) => this.clientProcessMessage(...data))
       this.sockets.client.bind(port)
       this.clientPort = port
     }
@@ -101,18 +93,12 @@ class P2P extends Component {
       const type = msg[0]
 
       const isNetLoop = () => {
-        if (msg.slice(1, 9).equals(this.uniqueId)) {
-          this.errNetLoop(port, address)
-          return true
-        } else {
-          return false
-        }
+        const isIn = msg.slice(1, 9).equals(this.uniqueId)
+        isIn && this.errNetLoop(port, address)
+        return isIn
       }
 
-      if (storage.session.stat) {
-        storage.session.stat.rps++
-      }
-
+      storage.session.stat && storage.session.stat.rps++
       let waiterId = PACK_ANY + ':' + address + ':' + port
       if (this.waiters[waiterId]) {
         for (const subId in this.waiters[waiterId]) {
@@ -130,10 +116,7 @@ class P2P extends Component {
       if (type === PACK_PING) {
         this.send(port, address, CMD_PONG)
       } else if (type === PACK_CONNECT) {
-        if (isNetLoop()) {
-          return
-        }
-
+        if (isNetLoop()) return
         if (!storage.servers[address]) {
           this.log('Checking node', address)
           const port = msg.readUInt16BE(9)
@@ -148,48 +131,38 @@ class P2P extends Component {
       } else if (type === PACK_ERR_NET_LOOP) {
         this.deleteServer(address)
       } else if (type === PACK_DATA) {
-        if (isNetLoop()) {
-          return
-        }
-
+        if (isNetLoop()) return
         this.dataOk(port, address, msg.slice(9, 13))
         this.emit('rcvdData', port, address, msg.slice(13))
       } else if (type === PACK_DATA_PART) {
         this.emit('rcvdDataPart', port, address, msg, (accepted) => {
-          if (accepted) {
-            this.dataPartOk(port, address, msg.slice(9, 17))
-          } else {
-            this.dataPartReject(port, address, msg.slice(9, 13))
-          }
+          const data = msg.slice(9, accepted ? 17 : 13)
+          const dataPart = accepted ? this.dataPartOk : this.dataPartReject
+          dataPart(port, address, data)
         })
       } else if (type === PACK_DATA_PART_SIZE) {
-        if (isNetLoop()) {
-          return
-        }
+        if (isNetLoop()) return
         this.emit('rcvdDataPartSize', port, address, msg, (accepted) => {
-          if (accepted) {
-            this.dataPartSizeOk(port, address, msg.slice(9, 21))
-          } else {
-            this.dataPartReject(port, address, msg.slice(9, 13))
-          }
+          const data = msg.slice(9, accepted ? 21 : 13)
+          const dataPartSize = accepted ? this.dataPartSizeOk : this.dataPartReject
+          dataPartSize(port, address, data)
         })
       }
     }
-
     this.clientProcessMessage = (msg, rinfo) => {
       this.log('RCVD C', rinfo.address, Conv.bufToHex(msg))
       this.processMessage(msg, rinfo)
     }
-
+    const changeOnline = () => {
+      this.serverOnline = true
+      this.closeClient()
+      this.emit('serverMode')
+      this.emit('online')
+      this.onServerOnline()
+    }
     this.serverProcessMessage = (msg, rinfo) => {
       this.log('RCVD S', rinfo.address, Conv.bufToHex(msg))
-      if (!this.serverOnline) {
-        this.serverOnline = true
-        this.closeClient()
-        this.emit('serverMode')
-        this.emit('online')
-        this.onServerOnline()
-      }
+      !this.serverOnline && changeOnline()
       this.processMessage(msg, rinfo)
     }
 
@@ -224,21 +197,12 @@ class P2P extends Component {
   }
 
   send (port, address, msg, useClientSocket = false) {
-    let socket
-    let mode
-    if (this.clientMode || useClientSocket) {
-      socket = this.sockets.client
-      mode = 'C'
-    } else {
-      socket = this.sockets.server
-      mode = 'S'
-    }
+    const isClient = this.clientMode || useClientSocket
+    const socket = isClient ? this.sockets.client : this.sockets.server
+    const mode = isClient ? 'C' : 'S'
     socket && socket.send(msg, port, address, (err) => {
-      if (err) {
-        this.emit('error', err)
-      } else {
-        this.log('SENT', mode, address, Conv.bufToHex(msg))
-      }
+      err && this.emit('error', err)
+      !err && this.log('SENT', mode, address, Conv.bufToHex(msg))
     })
   }
 
@@ -247,9 +211,7 @@ class P2P extends Component {
     const waiterId = (multi ? PACK_ANY : type) + ':' + address + ':' + port
     let subId = 0
     if (this.waiters[waiterId]) {
-      while (this.waiters[waiterId][subId]) {
-        subId++
-      }
+      while (this.waiters[waiterId][subId]) subId++
     } else {
       this.waiters[waiterId] = {}
     }
