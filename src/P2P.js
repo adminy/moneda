@@ -1,8 +1,6 @@
 'use strict'
 
 const dgram = require('dgram')
-const _ = require('lodash')
-
 const Component = require('./Component')
 const { Conv, Random, Time } = require('./helpers')
 const disp = require('./Disp')
@@ -275,7 +273,7 @@ class P2P extends Component {
     }
     const timer = setTimeout(() => {
       delete this.waiters[waiterId][subId]
-      if (!_.size(this.waiters[waiterId])) {
+      if (!Object.keys(this.waiters[waiterId]).length) {
         delete this.waiters[waiterId]
       }
       callbacks.onTimeout && callbacks.onTimeout()
@@ -285,7 +283,7 @@ class P2P extends Component {
         if ((!multi || type.includes(msg[0])) && (!callbacks.onRcvd || (callbacks.onRcvd(msg) !== false))) {
           clearTimeout(timer)
           delete this.waiters[waiterId][subId]
-          if (!_.size(this.waiters[waiterId])) {
+          if (!Object.keys(this.waiters[waiterId]).length) {
             delete this.waiters[waiterId]
           }
         }
@@ -293,7 +291,7 @@ class P2P extends Component {
       close: () => {
         clearTimeout(timer)
         delete this.waiters[waiterId][subId]
-        if (!_.size(this.waiters[waiterId])) {
+        if (!Object.keys(this.waiters[waiterId]).length) {
           delete this.waiters[waiterId]
         }
       }

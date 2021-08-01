@@ -1,7 +1,6 @@
 'use strict'
 
 const blessed = require('blessed')
-const _ = require('lodash')
 const { Conv } = require('./helpers')
 const { app } = require('./windows')
 const disp = require('./Disp')
@@ -166,22 +165,22 @@ class Interface extends Component {
 
           if (this.windowsVars.app.headerType === 1) {
             const memoryUsage = process.memoryUsage()
-            this.windows.app.header.setLine(0, '{bold}RSS ' + _.padStart(Conv.sizeToStr(memoryUsage.rss), 6) + ' HPT ' + _.padStart(Conv.sizeToStr(memoryUsage.heapTotal), 6) + ' HPU ' + _.padStart(Conv.sizeToStr(memoryUsage.heapUsed), 6) + ' EXT ' + _.padStart(Conv.sizeToStr(memoryUsage.external), 6) + '{/bold}')
+            this.windows.app.header.setLine(0, '{bold}RSS ' + Conv.sizeToStr(memoryUsage.rss).padStart(6) + ' HPT ' + Conv.sizeToStr(memoryUsage.heapTotal).padStart(6) + ' HPU ' + Conv.sizeToStr(memoryUsage.heapUsed).padStart(6) + ' EXT ' + Conv.sizeToStr(memoryUsage.external).padStart(6) + '{/bold}')
           } else {
             storage.emit('getLockQueueLength', (lockQueueLength) => {
-              this.windows.app.header.setLine(0, '{bold}HPS ' + _.padStart(storage.session.stat.hps, 4) +
+              this.windows.app.header.setLine(0, '{bold}HPS ' + storage.session.stat.hps.toString().padStart(4) +
                 (storage.session.stat.txs
-                  ? ' TXS ' + _.padStart(storage.session.stat.txs, 4)
-                  : ' RPS ' + _.padStart(storage.session.stat.rps >> 1, 6)) +
+                  ? ' TXS ' + storage.session.stat.txs.padStart(4)
+                  : ' RPS ' + (storage.session.stat.rps >> 1).toString().padStart(6)) +
                 (storage.session.stat.bsz
-                  ? ' BSZ ' + _.padStart(Conv.sizeToStr(storage.session.stat.bsz), 6)
-                  : _.padStart('', 9)) +
-                ' BLK ' + _.padStart(storage.session.blockchain.length, 8) +
+                  ? ' BSZ ' + Conv.sizeToStr(storage.session.stat.bsz).padStart(6)
+                  : ''.padStart(9)) +
+                ' BLK ' + storage.session.blockchain.length.toString().padStart(8) +
                 ' {' + storage.session.stat.sncColor + '-fg}' +
-                _.padEnd(blockchainLoaded > 0 && blockchainLoaded < 100 ? '(' + blockchainLoaded + '%)' : 'SNC', 7) + '{/' + storage.session.stat.sncColor + '-fg} ' +
-                _.padStart(storage.session.stat.net, 7) + ' ' +
-                'BL ' + _.padStart(lockQueueLength, 3) +
-                ' MNR ' + this.states[this.windowsVars.app.minerState] + _.padStart(storage.session.version, 9) + '{/bold}')
+                (blockchainLoaded > 0 && blockchainLoaded < 100 ? '(' + blockchainLoaded + '%)' : 'SNC').padEnd(7) + '{/' + storage.session.stat.sncColor + '-fg} ' +
+                storage.session.stat.net.toString().padStart(7) + ' ' +
+                'BL ' + lockQueueLength.toString().padStart(3) +
+                ' MNR ' + this.states[this.windowsVars.app.minerState] + storage.session.version.toString().padStart(9) + '{/bold}')
               storage.session.stat.rps = 0
             })
           }
@@ -319,7 +318,7 @@ class Interface extends Component {
         const { currentBox, addresses, address, actions, onSelect } = data
         currentBox === 'addresses' && this.windows.wallet.addresses.setFront()
         if (addresses) {
-          this.windows.wallet.addresses.setItems(addresses.map(({ address, hard, soft, free }) => _.padEnd(address, 36) + '{green-fg}' + _.padStart(hard, 17) + '{/green-fg}{yellow-fg}' + _.padStart(soft, 17) + '{/yellow-fg}{red-fg}' + _.padStart(free, 8) + '{/red-fg}'))
+          this.windows.wallet.addresses.setItems(addresses.map(({ address, hard, soft, free }) => address.padEnd(36) + '{green-fg}' + hard.padStart(17) + '{/green-fg}{yellow-fg}' + soft.padStart(17) + '{/yellow-fg}{red-fg}' + free.padStart(8) + '{/red-fg}'))
           this.windows.wallet.addresses.focus()
         }
         this.windowsVars.wallet.onAddressSelect = onSelect && currentBox === 'addresses' ? onSelect : 0
@@ -642,7 +641,7 @@ class Interface extends Component {
       if (Object.values(aliases).reduce((acc, item) => acc + (item.module === module ? 1 : 0), 0) >= 2) return false
       this.windows.app.console.bottom++
       this.windows.app.consoleFixed.top--
-      const line = _.size(aliases)
+      const line = Object.keys(aliases).length
       aliases[alias] = {
         module,
         line: line,

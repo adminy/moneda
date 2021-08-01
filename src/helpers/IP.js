@@ -33,7 +33,7 @@ module.exports = new class IP {
     } else {
       segments = ip.split(':')
     }
-    return segments.map(i => _.padStart(i, 4, '0')).join(':')
+    return segments.map(i => i.padStart(4, '0')).join(':')
   }
 
   v4Pack (ip) {

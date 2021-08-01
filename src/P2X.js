@@ -1,7 +1,5 @@
 'use strict'
 
-const _ = require('lodash')
-
 const Component = require('./Component')
 const { Conv, Random, Time } = require('./helpers')
 const p2p = require('./P2P')
@@ -125,7 +123,7 @@ class P2X extends Component {
         callback(true)
 
         const rcvd = mpx.partsReceivedCount * 20 / mpx.partsCount >> 0
-        this.logAlias(mpxIdStr, 'MPX RCV ' + _.padEnd(address, 16) + _.repeat('|', rcvd) + _.repeat('.', 20 - rcvd) + ' (' + mpx.command + ')')
+        this.logAlias(mpxIdStr, 'MPX RCV ' + address.padEnd(16) + '|'.repeat(rcvd) + '.'.repeat(20 - rcvd) + ' (' + mpx.command + ')')
 
         if (mpx.receivedLength === mpx.dataLength) {
           let processors = 0

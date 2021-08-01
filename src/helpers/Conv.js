@@ -1,7 +1,4 @@
 'use strict'
-
-const _ = require('lodash')
-
 module.exports = new class Conv {
   objToJson (data) {
     return JSON.stringify(data)
@@ -36,12 +33,7 @@ module.exports = new class Conv {
   }
 
   bufToHexBytes (buf) {
-    let str = '<Buffer '
-    for (const Byte of buf) {
-      str += _.padStart(Byte.toString(16), 2, '0') + ' '
-    }
-    str += '>'
-    return str
+    return '<Buffer ' + buf.map(Byte => Byte.toString(16).padStart(2, '0') + ' ').join('') + '>'
   }
 
   countToStr (size) {

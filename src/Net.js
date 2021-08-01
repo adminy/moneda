@@ -1,8 +1,6 @@
 'use strict'
 
-const _ = require('lodash')
-
-const { Asyncs, Conv, Time } = require('./helpers')
+const { Conv, Time } = require('./helpers')
 const storage = require('./Storage')
 const Component = require('./Component')
 const p2x = require('./P2X')
@@ -55,7 +53,7 @@ class Net extends Component {
         return
       }
 
-      if (type === Cmd.SRV_INFO && _.size(storage.servers) < 50) {
+      if (type === Cmd.SRV_INFO && Object.keys(storage.servers).length < 50) {
         const data = SimpleCommand.fromRaw(rawData).getData()
         if (data && !storage.servers[data.address]) {
           const { isIpv6, port, address } = data
