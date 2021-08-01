@@ -1,7 +1,7 @@
 'use strict'
-
+const crypto = require('crypto')
 const Component = require('./Component')
-const { Conv, Random, Time } = require('./helpers')
+const { Conv, Time } = require('./helpers')
 const p2p = require('./P2P')
 const SteppedBuffer = require('./SteppedBuffer')
 const Cmd = require('./Cmd')
@@ -165,7 +165,7 @@ class P2X extends Component {
         onPong: () => {
           callbacks && callbacks.onPong && callbacks.onPong()
 
-          const mpxId = Random.bytes(4)
+          const mpxId = crypto.randomBytes(4)
           const mpxIdStr = Conv.bufToHex(mpxId)
           this.log('MPX', mpxIdStr, dataLength, 'bytes starting')
           p2p.dataPartSize(port, address, mpxId, dataLength, MAX_DATA_SIZE, {

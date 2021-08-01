@@ -1,8 +1,8 @@
 'use strict'
-
+const crypto = require('crypto')
 const dgram = require('dgram')
 const Component = require('./Component')
-const { Conv, Random, Time } = require('./helpers')
+const { Conv, Time } = require('./helpers')
 const disp = require('./Disp')
 const storage = require('./Storage')
 const SteppedBuffer = require('./SteppedBuffer')
@@ -30,13 +30,13 @@ const PACK_ANY = 0xff
 const CMD_PING = Buffer.from([PACK_PING])
 const CMD_PONG = Buffer.from([PACK_PONG])
 const CMD_ERR_NET_LOOP = Buffer.from([PACK_ERR_NET_LOOP])
-
+const randomNumber = (min, max) => min + Math.floor(Math.random() * (max + 1 - min))
 class P2P extends Component {
   constructor () {
     super()
     this.module = 'P2P'
     this.sockets = { client: null, server: null }
-    this.uniqueId = Random.bytes(8)
+    this.uniqueId = crypto.randomBytes(8)
     this.serverPort = null
     this.clientPort = null
     this.serverOnline = false
@@ -64,7 +64,7 @@ class P2P extends Component {
     }
 
     this.bindLocalPort = () => {
-      const port = Random.number(50000, 55000)
+      const port = randomNumber(50000, 55000)
       this.closeClient()
       this.sockets.client = dgram.createSocket('udp4')
       this.sockets.client.on('error', () => {
@@ -341,7 +341,7 @@ class P2P extends Component {
   }
 
   data (port, address, msg, callbacks) {
-    const reqId = Random.bytes(4)
+    const reqId = crypto.randomBytes(4)
 
     const packet = SteppedBuffer(64)
     packet.addUInt(PACK_DATA, 1)

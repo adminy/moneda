@@ -7,7 +7,7 @@ Notes:
 const fs = require('fs')
 const path = require('path')
 const Database = require('better-sqlite3')
-const { Files, Time } = require('./helpers')
+const { Time } = require('./helpers')
 const disp = require('./Disp')
 const storage = require('./Storage')
 const Component = require('./Component')
@@ -17,7 +17,8 @@ const ScalableBufferArray = require('./ScalableBufferArray')
 const PATH_CHECKPOINTS = path.join(__dirname, '../data/checkpoints/')
 const INITIAL_PREV_BLOCK = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', 'hex')
 const FIRST_BLOCK_HASH = Buffer.from('00091c70a5766a655134e1a93cee11887515ad34c4f9d4b4287c7994d821cc33', 'hex')
-
+const copyFile = (src, dst) => fs.writeFileSync(dst, fs.readFileSync(src))
+const needDir = path => !fs.existsSync(path) && fs.mkdirSync(path, { recursive: true })
 const splitEvery = (list, chunkSize) => [...Array(Math.ceil(list.length / chunkSize))].map(_ => list.splice(0, chunkSize))
 module.exports = new class Blockchain extends Component {
   constructor () {
@@ -103,7 +104,7 @@ module.exports = new class Blockchain extends Component {
       this.logBy('COL', ...data)
     }
 
-    Files.needDir(PATH_CHECKPOINTS)
+    needDir(PATH_CHECKPOINTS)
 
     this.dbCreateTables()
     this.updateLength()
@@ -441,7 +442,7 @@ module.exports = new class Blockchain extends Component {
       const path = PATH_CHECKPOINTS + name + '/'
       fs.rmdirSync(path, { recursive: true })
       fs.mkdirSync(path, { recursive: true })
-      Files.copy(dbPath, path + dbFileName)
+      copyFile(dbPath, path + dbFileName)
       fs.openSync(path + 'ready')
       storage.lastCheckpoint = name
       // storage.flush()
@@ -452,7 +453,7 @@ module.exports = new class Blockchain extends Component {
       const path = PATH_CHECKPOINTS + storage.lastCheckpoint + '/'
       if (fs.existsSync(path + 'ready')) {
         disp.lockTerm()
-        Files.copyBack(dbPath, path + dbFileName)
+        copyFile(path + dbFileName, dbPath)
         db = Database(dbPath, {})
         storage.blockchainCached = true
         // storage.flush()

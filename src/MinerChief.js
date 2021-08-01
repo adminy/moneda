@@ -1,6 +1,6 @@
 'use strict'
 
-const { Conv, Random, Time } = require('./helpers')
+const { Conv, Time } = require('./helpers')
 const storage = require('./Storage')
 const Component = require('./Component')
 const Address = require('./Address')
@@ -9,7 +9,7 @@ const Block = require('./Block')
 const Tx = require('./Tx')
 const blockProcessor = require('./BlockProcessor')
 const { BLOCK_HEADER_LENGTH } = require('./Constants')
-
+const randomItem = arr => arr[Math.floor(Math.random() * arr.length)]
 class MinerChief extends Component {
   constructor () {
     super()
@@ -75,7 +75,7 @@ class MinerChief extends Component {
     const count = blockchain.getCountByTimeInBranchStructure(branchStructure, lastBlockData.time - 3600, lastBlockData.time)
     const blockDiff = Block.calcDiff(masterBranch.length, lastBlockData.diff, count)
     const blockReward = Tx.calcBlockReward(masterBranch.length)
-    const address = Random.item(storage.config.miner.addresses)
+    const address = randomItem(storage.config.miner.addresses)
 
     this.block.setPrevBlock(lastBlock.getHash())
     this.block.setTime(Time.global())
