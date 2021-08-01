@@ -68,63 +68,32 @@ module.exports = class TakeBlocksAfter extends Component {
   }
 
   addBlocks (callback) {
-    if (!this.fromAllBranches && blockchain.getLockQueueLength() > 2) {
-      this.log('{red-fg}Blocks request IGNORED (C2 format, long queue){/red-fg}')
-      return
-    }
-
+    if (!this.fromAllBranches && blockchain.getLockQueueLength() > 2) return this.log('{red-fg}Blocks request IGNORED (C2 format, long queue){/red-fg}')
     if (this.fromAllBranches) {
       const blockchainLength = blockchain.getLengthForced()
       let added = 0
-      blockchain.eachAfterForced(this.afterHash, this.maxBlockCount, ({ hash, data }, next) => {
-        if (this.packet.getLength() + data.length > this.maxPacketSize) {
-          next(true)
-          return
-        }
-
+      const blocks = blockchain.eachAfterForced(this.afterHash, this.maxBlockCount)
+      const res = Array.isArray(blocks) ? blocks.length : blocks
+      for (const { hash, data } of (Array.isArray(blocks) ? blocks : [])) {
+        if (this.packet.getLength() + data.length > this.maxPacketSize) break
         this.addBlock(hash, data)
         added++
-        next()
-      }, (res) => {
-        if (res > 0) {
-          this.log('{yellow-fg}Responded: TAKE_BLOCKS_AFTER +Z ' + (this.fromAllBranches ? '+' : '-') + 'A, ' + added + ' blocks{/yellow-fg}')
-          callback(TAKE_BLOCKS_AFTER)
-        } else if (res === 0) {
-          this.log('{yellow-fg}Responded: NO_BLOCK_AFTER{/yellow-fg}')
-          callback(NO_BLOCK_AFTER)
-        } else {
-          this.log('{yellow-fg}Responded: NO_BLOCK, ' + blockchainLength + '{/yellow-fg}')
-          callback(NO_BLOCK, { blockchainLength })
-        }
-      }, 1)
+      }
+      res > 0 && this.log('{yellow-fg}Responded: TAKE_BLOCKS_AFTER +Z ' + (this.fromAllBranches ? '+' : '-') + 'A, ' + added + ' blocks{/yellow-fg}')
+      res > 0 && callback(TAKE_BLOCKS_AFTER)
+      !res && this.log('{yellow-fg}Responded: NO_BLOCK_AFTER{/yellow-fg}')
+      !res && callback(NO_BLOCK_AFTER)
+      res === -1 && this.log('{yellow-fg}Responded: NO_BLOCK, ' + blockchainLength + '{/yellow-fg}')
+      res === -1 && callback(NO_BLOCK, { blockchainLength })
     } else {
-      blockchain.whenUnlocked((unlock) => {
-        blockchain.getLength((blockchainLength) => {
-          let added = 0
-          blockchain.eachInMasterBranchAfter(this.afterHash, this.maxBlockCount, ({ hash, data }, next) => {
-            if (this.packet.getLength() + data.length > this.maxPacketSize) {
-              next(true)
-              return
-            }
-
-            this.addBlock(hash, data)
-            added++
-            next()
-          }, (res) => {
-            unlock()
-            if (res > 0) {
-              this.log('{yellow-fg}Responded: TAKE_BLOCKS_AFTER +Z ' + (this.fromAllBranches ? '+' : '-') + 'A, ' + added + ' blocks{/yellow-fg}')
-              callback(TAKE_BLOCKS_AFTER)
-            } else if (res === 0) {
-              this.log('{yellow-fg}Responded: NO_BLOCK_AFTER{/yellow-fg}')
-              callback(NO_BLOCK_AFTER)
-            } else {
-              this.log('{yellow-fg}Responded: NO_BLOCK, ' + blockchainLength + '{/yellow-fg}')
-              callback(NO_BLOCK, { blockchainLength })
-            }
-          }, 1)
-        }, 1)
-      }, 0, 'TakeBlocksAfter.addBlocks()')
+      const blockchainLength = blockchain.getLength()
+      const res = blockchain.eachInMasterBranchAfter(this.afterHash, this.maxBlockCount, this.packet, this.maxPacketSize, ({ hash, data }) => this.addBlock(hash, data))
+      res > 0 && this.log('{yellow-fg}Responded: TAKE_BLOCKS_AFTER +Z ' + (this.fromAllBranches ? '+' : '-') + 'A, ' + res + ' blocks{/yellow-fg}')
+      res > 0 && callback(TAKE_BLOCKS_AFTER)
+      !res && this.log('{yellow-fg}Responded: NO_BLOCK_AFTER{/yellow-fg}')
+      !res && callback(NO_BLOCK_AFTER)
+      res === -1 && this.log('{yellow-fg}Responded: NO_BLOCK, ' + blockchainLength + '{/yellow-fg}')
+      res === -1 && callback(NO_BLOCK, { blockchainLength })
     }
   }
 

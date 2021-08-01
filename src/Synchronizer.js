@@ -1,7 +1,6 @@
 'use strict'
 
 const { Conv, Probable, Time } = require('./helpers')
-const disp = require('./Disp')
 const storage = require('./Storage')
 const Component = require('./Component')
 const blockchain = require('./Blockchain')
@@ -94,7 +93,6 @@ class Synchronizer extends Component {
                 const blockHeight = prevBlockMeta.height + 1
                 const collision = blockchain.checkForCollision(prevBlockMeta.branchId, blockHeight)
                 let branchId = prevBlockMeta.branchId
-                if (disp.isSigTerm()) return
                 if (collision) {
                   this.log('Creating new branch due to collision')
                   branchId = blockchain.addBranch(branchId, prevBlockMeta.height + 1)
@@ -108,7 +106,6 @@ class Synchronizer extends Component {
             }
           }
           this.log('Waiting for blockchain processes...')
-          if (disp.isSigTerm()) return
           this.logAliasClear('synchronizing')
           this.log('Branch #' + branchId + ' synchronized')
           const removeBranch = () => {

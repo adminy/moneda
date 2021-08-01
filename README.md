@@ -3,12 +3,14 @@
 
 - [x] secure wallets with aes-256 bit encryption
 - [x] upgrade database from sqlite3 to better-sqlite3
-- [ ] fix syncronous problems and locks
+- [x] fix syncronous problems and locks
 - [ ] edge case no peers bug fixes
 - [x] remove ramda, lodash dependency
 - [ ] remove oop principles entirely
+- [ ] offer fully syncronous / event based app with boundary async
 - [ ] get blocks on the network (visible in GUI)
 - [ ] turn this into an executable / service
+- [ ] improve block sign & verify crypto security
 - [ ] document what is being offered!
 ## Features
 - [ ] Unmanaged Network (self discovering)

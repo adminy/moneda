@@ -8,6 +8,7 @@
 
 const zlib = require('zlib')
 const Component = require('../Component')
+const storage = require('../Storage')
 const blockProcessor = require('../BlockProcessor')
 const SteppedBuffer = require('../SteppedBuffer')
 const { BLOCK_FOUND_ZIPPED } = require('../Cmd')
@@ -30,8 +31,6 @@ module.exports = class BlockFoundZipped extends Component {
       this.packet.addBuffer(raw)
       this.packet.seek(1)
       this.data.hash = this.packet.readBuffer(32)
-
-      this.lock()
       zlib.inflateRaw(this.packet.readBufferUntilEnd(), (err, inflated) => {
         if (err) {
           this.log('{red-fg}BLOCK_FOUND_ZIPPED REJECTED: wrong data{/red-fg}')
@@ -42,7 +41,6 @@ module.exports = class BlockFoundZipped extends Component {
         this.packet.seek(33)
         this.packet.addBuffer(inflated)
         this.packet.crop()
-        this.unlock()
       })
     } else {
       this.data.hash = hash
@@ -52,44 +50,22 @@ module.exports = class BlockFoundZipped extends Component {
       this.packet.addBuffer(data)
 
       this.packet.seek(33)
-      this.lock()
       zlib.deflateRaw(this.packet.readBufferUntilEnd(), (err, deflated) => {
-        if (err) {
-          storage.emit('fatalError', 'zlib error')
-          return
-        }
-
+        if (err) return storage.emit('fatalError', 'zlib error')
         this.packet.seek(33)
         this.packet.addBuffer(deflated)
         this.packet.crop()
-        this.unlock()
       })
     }
   }
 
-  static create (data) {
-    return new BlockFoundZipped(data)
-  }
-
-  static fromRaw (raw) {
-    return new BlockFoundZipped({ raw })
-  }
+  static create (data) { return new BlockFoundZipped(data) }
+  static fromRaw (raw) { return new BlockFoundZipped({ raw }) }
 
   process () {
-    if (this.errorWhileUnpacking) {
-      return
-    }
-
-    this.whenUnlocked((unlock) => {
-      unlock()
-      blockProcessor.add(this.data.hash, this.packet.getSliced(33))
-    })
+    if (this.errorWhileUnpacking) return
+    blockProcessor.add(this.data.hash, this.packet.getSliced(33))
   }
 
-  getRaw (callback) {
-    this.whenUnlocked((unlock) => {
-      unlock()
-      callback(this.packet.getWhole())
-    })
-  }
+  getRaw (callback) { callback(this.packet.getWhole()) }
 }

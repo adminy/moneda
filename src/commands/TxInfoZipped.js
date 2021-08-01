@@ -31,18 +31,11 @@ module.exports = class TxInfoZipped extends Component {
       this.packet.addBuffer(raw)
       this.packet.seek(1)
       this.data.hash = this.packet.readBuffer(32)
-
-      this.lock()
       zlib.inflateRaw(this.packet.readBufferUntilEnd(), (err, inflated) => {
-        if (err) {
-          storage.emit('fatalError', 'zlib error')
-          return
-        }
-
+        if (err) return storage.emit('fatalError', 'zlib error')
         this.packet.seek(33)
         this.packet.addBuffer(inflated)
         this.packet.crop()
-        this.unlock()
       })
     } else {
       this.data.hash = hash
@@ -52,44 +45,22 @@ module.exports = class TxInfoZipped extends Component {
       this.packet.addBuffer(data)
 
       this.packet.seek(33)
-      this.lock()
       zlib.deflateRaw(this.packet.readBufferUntilEnd(), (err, deflated) => {
-        if (err) {
-          storage.emit('fatalError', 'zlib error')
-          return
-        }
-
+        if (err) return storage.emit('fatalError', 'zlib error')
         this.packet.seek(33)
         this.packet.addBuffer(deflated)
         this.packet.crop()
-        this.unlock()
       })
     }
   }
 
-  static create (data) {
-    return new TxInfoZipped(data)
-  }
-
-  static fromRaw (raw) {
-    return new TxInfoZipped({ raw })
-  }
+  static create (data) { return new TxInfoZipped(data) }
+  static fromRaw (raw) { return new TxInfoZipped({ raw }) }
 
   process () {
-    if (this.errorWhileUnpacking) {
-      return
-    }
-
-    this.whenUnlocked((unlock) => {
-      unlock()
-      txProcessor.add(this.data.hash, this.packet.getSliced(33))
-    })
+    if (this.errorWhileUnpacking) return
+    txProcessor.add(this.data.hash, this.packet.getSliced(33))
   }
 
-  getRaw (callback) {
-    this.whenUnlocked((unlock) => {
-      unlock()
-      callback(this.packet.getWhole())
-    })
-  }
+  getRaw (callback) { callback(this.packet.getWhole()) }
 }

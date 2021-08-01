@@ -3,7 +3,6 @@ const crypto = require('crypto')
 const dgram = require('dgram')
 const Component = require('./Component')
 const { Conv, Time } = require('./helpers')
-const disp = require('./Disp')
 const storage = require('./Storage')
 const SteppedBuffer = require('./SteppedBuffer')
 
@@ -43,7 +42,6 @@ class P2P extends Component {
     this.clientOnline = false
     this.serverModeAttempts = 0
     this.waiters = {}
-    this.lockMessages = false
 
     this.closeClient = () => {
       if (!this.sockets.client) {
@@ -179,19 +177,11 @@ class P2P extends Component {
     }
 
     this.clientProcessMessage = (msg, rinfo) => {
-      if (this.lockMessages) {
-        return
-      }
-
       this.log('RCVD C', rinfo.address, Conv.bufToHex(msg))
       this.processMessage(msg, rinfo)
     }
 
     this.serverProcessMessage = (msg, rinfo) => {
-      if (this.lockMessages) {
-        return
-      }
-
       this.log('RCVD S', rinfo.address, Conv.bufToHex(msg))
       if (!this.serverOnline) {
         this.serverOnline = true
@@ -213,10 +203,6 @@ class P2P extends Component {
     }
 
     this.bindLocalPort()
-
-    disp.on('sigTerm', () => {
-      this.lockMessages = true
-    })
   }
 
   listen (serverPort, callback) {
@@ -238,10 +224,6 @@ class P2P extends Component {
   }
 
   send (port, address, msg, useClientSocket = false) {
-    if (this.lockMessages) {
-      return
-    }
-
     let socket
     let mode
     if (this.clientMode || useClientSocket) {

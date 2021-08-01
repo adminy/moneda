@@ -8,7 +8,6 @@ const fs = require('fs')
 const path = require('path')
 const Database = require('better-sqlite3')
 const { Time } = require('./helpers')
-const disp = require('./Disp')
 const storage = require('./Storage')
 const Component = require('./Component')
 const Block = require('./Block')
@@ -273,9 +272,9 @@ module.exports = new class Blockchain extends Component {
       }
       return db.prepare('SELECT * FROM blocks WHERE id>? LIMIT ' + count).all(blockId)
     }
-    this.eachInMasterBranchAfter = (hash, count) => {
-      const masterBranch = blockchain.getMasterBranch()
-      const branchStructure = blockchain.getBranchStructure(masterBranch.id)
+    this.eachInMasterBranchAfter = (hash, count, packet, maxPacketSize, addBlockRow) => {
+      const masterBranch = this.getMasterBranch()
+      const branchStructure = this.getBranchStructure(masterBranch.id)
       let height = -1
       if (!hash.equals(INITIAL_PREV_BLOCK)) {
         const blockMeta = this.getBlockMetaByHash(hash)
@@ -288,9 +287,12 @@ module.exports = new class Blockchain extends Component {
       const nextBlock = () => {
         const blockRow = this.getBlockRowInBranchStructureByHeight(branchStructure, ++height)
         if (!blockRow) return added
-        ++added !== count && nextBlock()
+        addBlockRow(blockRow)
+        const isNextBlock = ++added !== count || packet.getLength() + blockRow.data.length > maxPacketSize
+        isNextBlock && nextBlock()
       }
       nextBlock()
+      return added
     }
     this.getMasterBranch = () => {
       const rows = db.prepare('SELECT * FROM branches WHERE isMaster=1').all()
@@ -452,7 +454,6 @@ module.exports = new class Blockchain extends Component {
       if (!storage.lastCheckpoint) return
       const path = PATH_CHECKPOINTS + storage.lastCheckpoint + '/'
       if (fs.existsSync(path + 'ready')) {
-        disp.lockTerm()
         copyFile(path + dbFileName, dbPath)
         db = Database(dbPath, {})
         storage.blockchainCached = true

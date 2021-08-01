@@ -3,7 +3,6 @@ const path = require('path')
 const moment = require('moment')
 const { Conv, Time } = require('./src/helpers')
 const storage = require('./src/Storage')
-const disp = require('./src/Disp')
 const Component = require('./src/Component')
 const Address = require('./src/Address')
 const blockchain = require('./src/Blockchain')
@@ -28,17 +27,15 @@ const app = new class App extends Component {
     }
     storage.on('fatalError', (error) => {
       this.log('{red-fg}Fatal error: ' + error + '{/red-fg}')
-      disp.terminate(() => {
-        ifc.close()
-        console.log(error)
-      })
+      ifc.close()
+      console.log(error)
     })
 
     ifc.open()
     ifc.key(['C-c', 'f10', '*'], () => {
       ifc.openWindow('loading')
       ifc.updateWindow('loading', { info: 'Terminating...' })
-      disp.terminate()
+      process.exit()
     })
     ifc.openWindow('loading')
     ifc.updateWindow('loading', { info: 'Synchronizing time...' })
@@ -126,7 +123,6 @@ const app = new class App extends Component {
 
         ifc.key('C-b', () => {
           this.logAlias('deletingextrabranches', '[DEBUG DeleteBranches] Waiting for dispatcher...')
-          disp.unsetSigTerm()
           const branches = blockchain.getBranches()
           for (const branch of branches) {
             if (branch.isMaster) continue
@@ -134,7 +130,6 @@ const app = new class App extends Component {
             blockchain.removeBranch(branch)
           }
           this.logAliasClear('deletingextrabranches')
-          disp.terminate()
         })
 
         this.log('Synchronizing blockchain...')

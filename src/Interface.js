@@ -3,7 +3,6 @@
 const blessed = require('blessed')
 const { Conv } = require('./helpers')
 const { app } = require('./windows')
-const disp = require('./Disp')
 const storage = require('./Storage')
 const Component = require('./Component')
 
@@ -19,14 +18,14 @@ class Interface extends Component {
     this.windowsIntervals = {}
     this.popups = {}
     this.states = ['/', '-', '\\', '|']
+  }
 
-    disp.on('sigTerm', () => {
-      if (this.currentWindow === 'app') {
-        this.windows.app.console.bottom = 1
-        this.windows.app.consoleFixed.top = this.screen.height - 1
-        this.screen.render()
-      }
-    })
+  sigTerm () {
+    if (this.currentWindow === 'app') {
+      this.windows.app.console.bottom = 1
+      this.windows.app.consoleFixed.top = this.screen.height - 1
+      this.screen.render()
+    }
   }
 
   open () {
