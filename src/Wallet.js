@@ -177,7 +177,7 @@ class Wallet extends Component {
               if (rest > 0) return [false, 'Not enough micoins']
               rest < 0 && tx.addOut(addressesData[addressesBalances[0].address].raw, -rest)
               for (const { txHash, outN, priv, publ } of txIns) {
-                tx.addIn(txHash, outN, { priv, publ })
+                tx.addIn(txHash, outN, { priv, publ }) // async function ...
               }
               const feeMustBe = Tx.calcFee(tx.getRawDataLength())
               const feeReal = toSend - toReceive

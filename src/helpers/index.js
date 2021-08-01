@@ -7,6 +7,5 @@ module.exports = {
   Objects: require('./Objects'),
   Probable: require('./Probable'),
   Sign: require('./Sign'),
-  Sorted: require('./Sorted'),
   Time: require('./Time')
 }

@@ -217,11 +217,8 @@ module.exports = class Tx extends Component {
     return true
   }
 
-  addIn (txHash, outN, { priv, publ }, callback) {
-    if (!this.data.txOuts.getLength()) {
-      throw new Error('Cannot add IN until all OUTs added')
-    }
-
+  async addIn (txHash, outN, { priv, publ }) {
+    if (!this.data.txOuts.getLength()) throw new Error('Cannot add IN until all OUTs added')
     this.onDataChanged()
 
     const { txKeys, txIns, txOuts } = this.data
@@ -239,18 +236,9 @@ module.exports = class Tx extends Component {
     toSign.writeUInt32BE(outN, 32)
     this.txOutsRaw.copy(toSign, 36)
 
-    Sign.make(toSign, priv, (sign) => {
-      txIns.push({
-        txHash,
-        outN,
-        keyId,
-        signSize: sign.length,
-        sign
-      }, { sign: sign.length })
-      this.data.txInCount++
-      callback()
-    })
-
+    const sign = await Sign.make(toSign, priv)
+    txIns.push({ txHash, outN, keyId, signSize: sign.length, sign }, { sign: sign.length })
+    this.data.txInCount++
     return true
   }
 
@@ -273,184 +261,87 @@ module.exports = class Tx extends Component {
     return this.rawData.getSliced(0, 32)
   }
 
-  isValidAsFree (callback, allowableLockCount = 0) {
-    blockchain.whenUnlocked((unlock) => {
-      blockchain.getMasterBranch(({ id, length }) => {
-        blockchain.getBranchStructure(id, (branchStructure) => {
-          this.isValidInBranchStructure(branchStructure, null, length, {}, (...res) => {
-            unlock()
-            callback(...res)
-          }, allowableLockCount + 1)
-        }, allowableLockCount + 1)
-      }, allowableLockCount + 1)
-    }, allowableLockCount, 'Tx.isValidAsFree()')
+  isValidAsFree () {
+    const { id, length } = blockchain.getMasterBranch()
+    const branchStructure = blockchain.getBranchStructure(id)
+    return this.isValidInBranchStructure(branchStructure, null, length, {})
   }
 
-  // blockchain must be locked before calling isValidInBranchStructure()
-  isValidInBranchStructure (branchStructure, blockData, blockHeight, { isFirstBlockTx, notFirstBlockTxsFee }, callback, allowableLockCount = 0) {
-    blockchain.whenUnlocked((unlock) => {
-      const ret = (...args) => {
-        unlock()
-        callback(...args)
-      }
-
-      if (this.errorWhileUnpacking) {
-        ret(false, this.errorWhileUnpacking)
-        return
-      }
-
-      // length <= 786432
-      if (this.getRawDataLength() > 786432) {
-        ret(false, 'Too big tx')
-        return
-      }
-
-      if (isFirstBlockTx) {
-        // INs count
-        if (this.data.txInCount > 0) {
-          ret(false, 'First tx has IN')
-          return
+  async isValidInBranchStructure (branchStructure, blockData, blockHeight, { isFirstBlockTx, notFirstBlockTxsFee }) {
+    if (this.errorWhileUnpacking) return [false, this.errorWhileUnpacking]
+    // length <= 786432
+    if (this.getRawDataLength() > 786432) return [false, 'Too big tx']
+    if (isFirstBlockTx) {
+      // INs count
+      if (this.data.txInCount > 0) return [false, 'First tx has IN']
+      // outs count
+      if (this.data.txOutCount !== 1) return [false, 'First tx has extra or no OUT']
+    }
+    // time
+    if (this.data.time > Time.global() + 60) return [false, 'Wrong time']
+    // hash
+    const calcedHash = Hash.twice(this.getRawData())
+    if (!calcedHash.equals(this.getHash())) return [false, 'Wrong hash']
+    // INs
+    let txInSum = 0
+    let txOutSum = 0
+    for (let i = 0; i < this.data.txIns.length; i++) {
+      const txIn = this.data.txIns[i]
+      const txWithOut = blockchain.getTxInBranchStructure(txIn.txHash, branchStructure)
+      // OUT exists
+      if (!txWithOut) return [false, 'Tx with OUT not exists']
+      const txWithOutData = txWithOut.getData()
+      if (txIn.outN >= txWithOutData.txOuts.getLength()) return [false, 'OUT not exists']
+      // prevent double spend in one tx
+      if (!this.data.txIns.slice(i + 1).every(txOtherIn => !(txIn.txHash.equals(txOtherIn.txHash) && txIn.outN === txOtherIn.outN))) return [false, 'Double spend in one tx']
+      // blockData tx must have no collisions with blockData txs
+      // free tx may have collisions with other free txs because every free tx is validating before adding
+      // to blockchain
+      // miner must create blockData and call isValidAfter() with created blockData
+      if (blockData) {
+        for (const t in blockData.txList) {
+          const otherTx = blockData.txList[t]
+          if (this.getHash().equals(otherTx.getHash())) continue
+          if (!otherTx.getData().txIns.every(txOtherIn => !(txIn.txHash.equals(txOtherIn.txHash) && txIn.outN === txOtherIn.outN))) return [false, 'Double spend in one blockData']
         }
-
-        // outs count
-        if (this.data.txOutCount !== 1) {
-          ret(false, 'First tx has extra or no OUT')
-          return
-        }
       }
+      const blockId = blockchain.txOutSpentInBranchStructure(txIn.txHash, txIn.outN, branchStructure)
+      // OUT not spent
+      if (blockId) return [false, 'OUT is spent']
+      // public key -> address
+      const publicKey = this.data.txKeys.get(txIn.keyId).publicKey
+      const addressFromKey = Address.publicKeyToAddress(publicKey)
+      const txWithOutDataTxOut = txWithOutData.txOuts.get(txIn.outN)
+      if (!addressFromKey.equals(txWithOutDataTxOut.address)) return [false, 'Public key not matches address']
+      txInSum += txWithOutDataTxOut.value
+      const toSign = SteppedBuffer(64)
+      toSign.addBuffer(txIn.txHash)
+      toSign.addUInt(txIn.outN, 4)
+      toSign.addBuffer(this.data.txOuts.getWhole())
+      try {
+        await Sign.verify(toSign.getWhole(), publicKey, txIn.sign)
+      } catch (e) { return [false, 'Wrong sign of IN'] }
+    }
 
-      // time
-      if (this.data.time > Time.global() + 60) {
-        ret(false, 'Wrong time')
-        return
-      }
-
-      // hash
-      const calcedHash = Hash.twice(this.getRawData())
-      if (!calcedHash.equals(this.getHash())) {
-        ret(false, 'Wrong hash')
-        return
-      }
-
-      // INs
-      let txInSum = 0
-      let txOutSum = 0
-      this.data.txIns.eachAsync((txIn, i, raw, next) => {
-        blockchain.getTxInBranchStructure(txIn.txHash, branchStructure, (txWithOut) => {
-          // OUT exists
-          if (!txWithOut) {
-            ret(false, 'Tx with OUT not exists')
-            return
-          }
-
-          const txWithOutData = txWithOut.getData()
-          if (txIn.outN >= txWithOutData.txOuts.getLength()) {
-            ret(false, 'OUT not exists')
-            return
-          }
-
-          // prevent double spend in one tx
-          if (!this.data.txIns.eachFrom(i + 1, (txOtherIn, otherI) => {
-            if (txIn.txHash.equals(txOtherIn.txHash) && txIn.outN === txOtherIn.outN) {
-              return false
-            }
-          }, true)) {
-            ret(false, 'Double spend in one tx')
-            return
-          }
-
-          // blockData tx must have no collisions with blockData txs
-          // free tx may have collisions with other free txs because every free tx is validating before adding
-          // to blockchain
-          // miner must create blockData and call isValidAfter() with created blockData
-          if (blockData) {
-            for (const t in blockData.txList) {
-              const otherTx = blockData.txList[t]
-              if (this.getHash().equals(otherTx.getHash())) {
-                continue
-              }
-
-              if (!otherTx.getData().txIns.each((txOtherIn) => {
-                if (txIn.txHash.equals(txOtherIn.txHash) && txIn.outN === txOtherIn.outN) {
-                  return false
-                }
-              }, true)) {
-                ret(false, 'Double spend in one blockData')
-                return
-              }
-            }
-          }
-
-          const blockId = blockchain.txOutSpentInBranchStructure(txIn.txHash, txIn.outN, branchStructure)
-          // OUT not spent
-          if (blockId) {
-            ret(false, 'OUT is spent')
-            return
-          }
-
-          // public key -> address
-          const publicKey = this.data.txKeys.get(txIn.keyId).publicKey
-          const addressFromKey = Address.publicKeyToAddress(publicKey)
-          const txWithOutDataTxOut = txWithOutData.txOuts.get(txIn.outN)
-          if (!addressFromKey.equals(txWithOutDataTxOut.address)) {
-            ret(false, 'Public key not matches address')
-            return
-          }
-
-          txInSum += txWithOutDataTxOut.value
-
-          const toSign = SteppedBuffer(64)
-          toSign.addBuffer(txIn.txHash)
-          toSign.addUInt(txIn.outN, 4)
-          toSign.addBuffer(this.data.txOuts.getWhole())
-          Sign.verify(toSign.getWhole(), publicKey, txIn.sign, (valid) => {
-            if (valid) {
-              next()
-            } else {
-              ret(false, 'Wrong sign of IN')
-            }
-          })
-        }, allowableLockCount + 1)
-      }, () => {
-        // OUTs
-        const errOut = this.data.txOuts.each((txOut) => {
-          // address
-          if (!Address.isValid(txOut.address)) {
-            return 'Wrong address at OUT'
-          }
-
-          // amount
-          if (txOut.value <= 0) {
-            return 'Wrong amount at OUT'
-          }
-
-          txOutSum += txOut.value
-        })
-        if (errOut) {
-          ret(false, errOut)
-          return
-        }
-
-        if (isFirstBlockTx) {
-          // reward
-          const reward = Tx.calcBlockReward(blockHeight)
-          if (txOutSum !== reward + notFirstBlockTxsFee) {
-            ret(false, 'Wrong amount of reward')
-            return
-          }
-
-          ret(true, null)
-        } else {
-          // fee
-          const fee = txInSum - txOutSum
-          if (fee < 0) {
-            ret(false, 'Wrong fee')
-            return
-          }
-
-          ret(true, null, fee)
-        }
-      })
-    }, allowableLockCount, 'Tx.isValidInBranchStructure()')
+    // OUTs
+    const errOut = this.data.txOuts.each((txOut) => {
+      // address
+      if (!Address.isValid(txOut.address)) return 'Wrong address at OUT'
+      // amount
+      if (txOut.value <= 0) return 'Wrong amount at OUT'
+      txOutSum += txOut.value
+    })
+    if (errOut) return [false, errOut]
+    if (isFirstBlockTx) {
+      // reward
+      const reward = Tx.calcBlockReward(blockHeight)
+      if (txOutSum !== reward + notFirstBlockTxsFee) return [false, 'Wrong amount of reward']
+      return [true, null]
+    } else {
+      // fee
+      const fee = txInSum - txOutSum
+      if (fee < 0) return [false, 'Wrong fee']
+      return [true, null, fee]
+    }
   }
 }
