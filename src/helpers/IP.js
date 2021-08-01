@@ -1,7 +1,4 @@
 'use strict'
-
-const R = require('ramda')
-
 module.exports = new class IP {
   constructor () {
     this.valuesOf = (iterator) => {
@@ -32,23 +29,23 @@ module.exports = new class IP {
       const before = ip.slice(0, index).split(':')
       const after = ip.slice(index + 2).split(':')
       const toAdd = 8 - before.length - after.length
-      segments = [...before, ...R.repeat('', toAdd), ...after]
+      segments = [...before, ...Array(toAdd).fill(''), ...after]
     } else {
       segments = ip.split(':')
     }
-    return R.join(':', R.map(i => _.padStart(i, 4, '0'), segments))
+    return segments.map(i => _.padStart(i, 4, '0')).join(':')
   }
 
   v4Pack (ip) {
-    return Buffer.concat(R.map(i => Buffer.from([i]), ip.split('.')))
+    return Buffer.concat(ip.split('.').map(i => Buffer.from([i])))
   }
 
   v6Pack (ip) {
-    return Buffer.concat(R.map(i => Buffer.from(R.map(t => ('0x' + t) >> 0, i.match(/.{2}/g))), this.ipv6Full(ip).split(':')))
+    return Buffer.concat(this.ipv6Full(ip).split(':').map(i => Buffer.from(i.match(/.{2}/g).map(t => ('0x' + t) >> 0))))
   }
 
   v4Unpack (ip) {
-    return R.join('.', this.valuesOf(ip.values()))
+    return this.valuesOf(ip.values()).join('.')
   }
 
   v6Unpack (ip) {
@@ -63,6 +60,6 @@ module.exports = new class IP {
       }
       x++
     }
-    return R.join(':', R.map(i => Buffer.from([i[0], i[1]]).toString('hex'), values))
+    return values.map(i => Buffer.from([i[0], i[1]]).toString('hex')).join(':')
   }
 }()

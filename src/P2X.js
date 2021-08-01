@@ -1,6 +1,5 @@
 'use strict'
 
-const R = require('ramda')
 const _ = require('lodash')
 
 const Component = require('./Component')
@@ -47,7 +46,7 @@ class P2X extends Component {
         started: Time.localMs(),
         partSize,
         partsCount,
-        partsReceived: R.repeat(false, partsCount),
+        partsReceived: Array(partsCount).fill(false),
         partsReceivedCount: 0,
         dataLength: dataLength,
         receivedLength: 0,
@@ -67,21 +66,21 @@ class P2X extends Component {
         callback(false)
         return
       }
-      
+
       const partId = data.readUInt32BE(13)
       if (partId >= mpx.partsCount || mpx.partsReceived[partId]) {
         this.log('MPX part rejected: unexpected part ID')
         callback(false)
         return
       }
-      
+
       const received = data.slice(17)
       if (received.length > mpx.partSize) {
         this.log('MPX part rejected: wrong size')
         callback(false)
         return
       }
-      
+
       const acceptPart = () => {
         mpx.buffer.seek(partId * mpx.partSize)
         mpx.buffer.addBuffer(received)
@@ -90,7 +89,7 @@ class P2X extends Component {
         mpx.partsReceivedCount++
         mpx.lastPartAccepted = Time.localMs()
       }
-      
+
       if (!mpx.partsReceived[0]) {
         if (!partId) {
           mpx.command = Cmd.toStr(received[0])
@@ -120,15 +119,14 @@ class P2X extends Component {
           delete this.mpxs[mpxIdStr]
           this.logAliasClear(mpxIdStr)
           this.emit('mpxAborted', mpxIdStr)
-          
         }
       } else {
         acceptPart()
         callback(true)
-        
+
         const rcvd = mpx.partsReceivedCount * 20 / mpx.partsCount >> 0
         this.logAlias(mpxIdStr, 'MPX RCV ' + _.padEnd(address, 16) + _.repeat('|', rcvd) + _.repeat('.', 20 - rcvd) + ' (' + mpx.command + ')')
-        
+
         if (mpx.receivedLength === mpx.dataLength) {
           let processors = 0
           // callbacks: processing, processed
@@ -249,15 +247,8 @@ class P2X extends Component {
     }
   }
 
-  getMpxsCountByCmdStr (cmdStr) {
-    return R.reduce((acc, item) => {
-      return acc + (item.command === cmdStr ? 1 : 0)
-    }, 0, R.values(this.mpxs))
-  }
-
-  getMaxMpxSize () {
-    return MAX_MPX_SIZE
-  }
+  getMpxsCountByCmdStr (cmdStr) { return Object.values(this.mpxs).reduce((acc, item) => acc + (item.command === cmdStr ? 1 : 0), 0) }
+  getMaxMpxSize () { return MAX_MPX_SIZE }
 }
 
 const p2x = new P2X()

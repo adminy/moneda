@@ -13,7 +13,7 @@ module.exports = class Component extends EventEmitter {
     this.logBy = (module, ...data) => {
       if (!storage.session.disableLog && (!storage.logIgnoreModules || !storage.logIgnoreModules[module]) && (!storage.logTrackModule || storage.logTrackModule === module)) {
         const dataTimed = ['[' + moment().format('HH:mm:ss') + ' ' + module + ']#', ...data]
-        const dataToLog = R.contains(module, ['FND', 'WLT', 'COL']) ? [module, ...dataTimed] : dataTimed
+        const dataToLog = ['FND', 'WLT', 'COL'].includes(module) ? [module, ...dataTimed] : dataTimed
         storage.emit('log', ...dataToLog) || console.log(...dataToLog)
       }
     }

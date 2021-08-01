@@ -1,7 +1,4 @@
 'use strict'
-
-const R = require('ramda')
-
 module.exports = new class Asyncs {
   // for (increment), min - including, max - not including
   forInc (min, max, itemCallback, returnCallback) {
@@ -19,7 +16,7 @@ module.exports = new class Asyncs {
         itemCallback(obj[i], i, next)
       }, returnCallback)
     } else {
-      const keys = R.keys(obj)
+      const keys = Object.keys(obj)
       this.forInc(0, keys.length, (i, next) => {
         itemCallback(obj[keys[i]], keys[i], next)
       }, returnCallback)

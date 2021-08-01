@@ -1,9 +1,7 @@
 'use strict'
 
 const blessed = require('blessed')
-const R = require('ramda')
 const _ = require('lodash')
-
 const { Conv } = require('./helpers')
 const { app } = require('./windows')
 const disp = require('./Disp')
@@ -33,56 +31,29 @@ class Interface extends Component {
   }
 
   open () {
-    this.screen = blessed.screen({
-      smartCSR: true
-    })
+    this.screen = blessed.screen({ smartCSR: true })
     this.screen.title = storage.session.appName
-
     storage.on('log', (...data) => {
-      if (data[0] === 'FND') {
-        this.logMiner(R.join(' ', R.map((line) => {
-          return typeof line === 'object' ? JSON.stringify(line) : line
-        }, data.slice(1))))
-      } else if (data[0] === 'WLT') {
-        this.logWallet(R.join(' ', R.map((line) => {
-          return typeof line === 'object' ? JSON.stringify(line) : line
-        }, data.slice(1))))
-      } else if (data[0] === 'COL') {
-        this.logCollision(R.join(' ', R.map((line) => {
-          return typeof line === 'object' ? JSON.stringify(line) : line
-        }, data.slice(1))))
-      } else {
-        this.logConsole(R.join(' ', R.map((line) => {
-          return typeof line === 'object' ? JSON.stringify(line) : line
-        }, data)))
-      }
+      const isIn = ['FND', 'WLT', 'COL'].includes(data[0])
+      const text = (isIn ? data.slice(1) : data).map(line => typeof line === 'object' ? JSON.stringify(line) : line).join(' ')
+      data[0] === 'FND' && this.logMiner(text)
+      data[0] === 'WLT' && this.logWallet(text)
+      data[0] === 'COL' && this.logCollision(text)
+      !isIn && this.logConsole(text)
     })
-
-    storage.on('logAlias', (module, alias, data) => {
-      this.logConsoleAlias(module, alias, data)
-    })
-
-    storage.on('logAliasClear', (module, alias) => {
-      this.logConsoleAliasClear(module, alias)
-    })
-
+    storage.on('logAlias', (module, alias, data) => this.logConsoleAlias(module, alias, data))
+    storage.on('logAliasClear', (module, alias) => this.logConsoleAliasClear(module, alias))
     return true
   }
 
-  close () {
-    this.screen.destroy()
-  }
-
+  close () { this.screen.destroy() }
   openWindow (name) {
     if (this.currentWindow) {
       this.emit('windowClosed', this.currentWindow)
       this.closeWindow(this.currentWindow)
     }
     this.currentWindow = name
-    setImmediate(() => {
-      this.emit('windowOpened', this.currentWindow)
-    })
-
+    setImmediate(() => this.emit('windowOpened', this.currentWindow))
     this.clearPopups()
 
     this.screenWidthHalf = this.screen.width / 2 >> 0
@@ -346,20 +317,12 @@ class Interface extends Component {
         }
       } else if (name === 'wallet') {
         const { currentBox, addresses, address, actions, onSelect } = data
-        if (currentBox) {
-          if (currentBox === 'addresses') {
-            this.windows.wallet.addresses.setFront()
-          }
-        }
+        currentBox === 'addresses' && this.windows.wallet.addresses.setFront()
         if (addresses) {
-          this.windows.wallet.addresses.setItems(R.map(({ address, hard, soft, free }) => _.padEnd(address, 36) + '{green-fg}' + _.padStart(hard, 17) + '{/green-fg}{yellow-fg}' + _.padStart(soft, 17) + '{/yellow-fg}{red-fg}' + _.padStart(free, 8) + '{/red-fg}', addresses))
+          this.windows.wallet.addresses.setItems(addresses.map(({ address, hard, soft, free }) => _.padEnd(address, 36) + '{green-fg}' + _.padStart(hard, 17) + '{/green-fg}{yellow-fg}' + _.padStart(soft, 17) + '{/yellow-fg}{red-fg}' + _.padStart(free, 8) + '{/red-fg}'))
           this.windows.wallet.addresses.focus()
         }
-        if (onSelect) {
-          if (currentBox === 'addresses') {
-            this.windowsVars.wallet.onAddressSelect = onSelect
-          }
-        }
+        this.windowsVars.wallet.onAddressSelect = onSelect && currentBox === 'addresses' ? onSelect : 0
       }
     }
     this.screen.render()
@@ -507,7 +470,7 @@ class Interface extends Component {
       scrollbar: true,
       scrollable: true,
       keys: true,
-      items: R.map(({ title }) => title, items),
+      items: items.map(({ title }) => title),
       style: {
         fg: 'white',
         bg: 'black',
@@ -660,42 +623,23 @@ class Interface extends Component {
     return this.currentWindow
   }
 
-  key (...args) {
-    this.screen.key(...args)
-  }
-
+  key (...args) { this.screen.key(...args) }
   logConsole (...data) {
-    if (!this.windows.app) {
-      return
-    }
-
-    R.forEach((line) => {
-      this.windows.app.console.pushLine(line)
-    }, data)
+    if (!this.windows.app) return
+    for (const line of data) this.windows.app.console.pushLine(line)
     const extraLines = this.windows.app.console.getScreenLines().length - this.screen.height + 2
-    if (extraLines > 0) {
-      for (let i = 0; i < extraLines; i++) {
-        this.windows.app.console.shiftLine(0)
-      }
-    }
+    for (let i = 0; i < extraLines; i++) this.windows.app.console.shiftLine(0)
     this.screen.render()
   }
 
   logConsoleAlias (module, alias, data) {
-    if (!this.windows.app) {
-      return
-    }
-
+    if (!this.windows.app) return
     const { aliases } = this.windowsVars.app
     if (aliases[alias]) {
       aliases[alias].content = data
       this.windows.app.consoleFixed.setLine(aliases[alias].line, data)
     } else {
-      if (R.reduce((acc, item) => {
-        return acc + (item.module === module ? 1 : 0)
-      }, 0, R.values(aliases)) >= 2) {
-        return false
-      }
+      if (Object.values(aliases).reduce((acc, item) => acc + (item.module === module ? 1 : 0), 0) >= 2) return false
       this.windows.app.console.bottom++
       this.windows.app.consoleFixed.top--
       const line = _.size(aliases)
@@ -710,10 +654,7 @@ class Interface extends Component {
   }
 
   logConsoleAliasClear (module, alias) {
-    if (!this.windows.app) {
-      return
-    }
-
+    if (!this.windows.app) return
     const { aliases } = this.windowsVars.app
     if (aliases[alias]) {
       this.windows.app.console.bottom--
@@ -731,53 +672,26 @@ class Interface extends Component {
   }
 
   logMiner (...data) {
-    if (!this.windows.app) {
-      return
-    }
-
-    R.forEach((line) => {
-      this.windows.app.miner.pushLine(line)
-    }, data)
+    if (!this.windows.app) return
+    for (const line of data) this.windows.app.miner.pushLine(line)
     const extraLines = this.windows.app.miner.getScreenLines().length - this.screen.height + 2
-    if (extraLines > 0) {
-      for (let i = 0; i < extraLines; i++) {
-        this.windows.app.miner.shiftLine(0)
-      }
-    }
+    for (let i = 0; i < extraLines; i++) this.windows.app.miner.shiftLine(0)
     this.screen.render()
   }
 
   logWallet (...data) {
-    if (!this.windows.app) {
-      return
-    }
-
-    R.forEach((line) => {
-      this.windows.app.wallet.pushLine(line)
-    }, data)
+    if (!this.windows.app) return
+    for (const line of data) this.windows.app.wallet.pushLine(line)
     const extraLines = this.windows.app.wallet.getScreenLines().length - this.screen.height + 2
-    if (extraLines > 0) {
-      for (let i = 0; i < extraLines; i++) {
-        this.windows.app.wallet.shiftLine(0)
-      }
-    }
+    for (let i = 0; i < extraLines; i++) this.windows.app.wallet.shiftLine(0)
     this.screen.render()
   }
 
   logCollision (...data) {
-    if (!this.windows.app) {
-      return
-    }
-
-    R.forEach((line) => {
-      this.windows.app.collision.pushLine(line)
-    }, data)
+    if (!this.windows.app) return
+    for (const line of data) this.windows.app.collision.pushLine(line)
     const extraLines = this.windows.app.collision.getScreenLines().length - this.screen.height + 2
-    if (extraLines > 0) {
-      for (let i = 0; i < extraLines; i++) {
-        this.windows.app.collision.shiftLine(0)
-      }
-    }
+    for (let i = 0; i < extraLines; i++) this.windows.app.collision.shiftLine(0)
     this.screen.render()
   }
 }

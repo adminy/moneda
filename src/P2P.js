@@ -1,7 +1,6 @@
 'use strict'
 
 const dgram = require('dgram')
-const R = require('ramda')
 const _ = require('lodash')
 
 const Component = require('./Component')
@@ -82,9 +81,9 @@ class P2P extends Component {
 
     this.validateLength = (msg) => {
       const type = msg[0]
-      return msg.length && (R.contains(type,
-        [PACK_PING, PACK_PONG, PACK_EXT_IP_OK, PACK_KEEP_ALIVE, PACK_ERR_NET_LOOP]) && (msg.length === 1) ||
-        R.contains(type, [PACK_CONNECT, PACK_CONNECT_CLIENT]) && (msg.length === 11) ||
+      return msg.length && ([PACK_PING, PACK_PONG, PACK_EXT_IP_OK, PACK_KEEP_ALIVE, PACK_ERR_NET_LOOP].includes(type) &&
+        (msg.length === 1) ||
+        [PACK_CONNECT, PACK_CONNECT_CLIENT].includes(type) && (msg.length === 11) ||
         (type === PACK_DATA) && (msg.length >= 13) ||
         (type === PACK_DATA_OK) && (msg.length === 5) ||
         (type === PACK_DATA_PART) && (msg.length >= 17) ||
@@ -283,7 +282,7 @@ class P2P extends Component {
     }, timeout)
     this.waiters[waiterId][subId] = {
       onRcvd: (msg) => {
-        if ((!multi || R.contains(msg[0], type)) && (!callbacks.onRcvd || (callbacks.onRcvd(msg) !== false))) {
+        if ((!multi || type.includes(msg[0])) && (!callbacks.onRcvd || (callbacks.onRcvd(msg) !== false))) {
           clearTimeout(timer)
           delete this.waiters[waiterId][subId]
           if (!_.size(this.waiters[waiterId])) {

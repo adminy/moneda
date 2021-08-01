@@ -14,4 +14,11 @@
 - [ ] Unmanaged Network (self discovering)
 - [ ] Secure PoW Blockchain
 
-...
+## Tools
+```bash
+# Count lines of code
+cloc --exclude-dir=node_modules,package-lock.json,config.json,README.md,package.json . --by-file
+
+# To test
+npm start
+```
